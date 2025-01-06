@@ -9,7 +9,6 @@ import SwiftUI
 import PhotosUI
 
 struct DashboardView: View {
-    
     @ObservedObject var vm: ViewModel
     @State private var photosPickerItem: PhotosPickerItem?
     
@@ -20,43 +19,27 @@ struct DashboardView: View {
         ZStack {
             VStack {
                 // MARK: - Header
-                Text("Detect Skin Cancer")
-                    .font(.largeTitle)
-                    .bold()
-                    .foregroundStyle(Color(.label))
-                    .padding()
-                    .padding(.top)
+                Header()
                 
                 Spacer()
                 
                 // MARK: - Detect Button
                 Button {
-                    vm.detect(vm.image!) { result in
+                    vm.classifyImage(vm.image!) { response in
                         DispatchQueue.main.async {
-                            vm.result = result
+                            vm.resultProbability = response
+                            let result = vm.getResultWithProbability(vm.resultProbability!)
                             
-                            // appending to history
-                            vm.detectionHistory.append(DetectionHistoryItem(result: result!, date: Date()))
-                            print(vm.detectionHistory)
+                            // assigning result to vm
+                            vm.resultWithProbability = result
                             
-                            // adding to HistoryContainer
-                            vm.addHistory(date: Date(), result: result!)
+                            // adding result to history
+                            vm.addHistory(date: Date(), result: result.0)
                         }
                     }
                     
                 } label: {
-                    VStack {
-                        Text("\(Image(systemName: "magnifyingglass")) Start Detection")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                        
-                    }
-                    .foregroundStyle(Color(.systemBackground))
-                    .padding()
-                    .background {
-                        Capsule()
-                            .frame(width: UIScreen.main.bounds.width * 0.8)
-                    }
+                    DetectButton()
                 }
                 .disabled(vm.image == nil)
                 .padding()
@@ -73,24 +56,24 @@ struct DashboardView: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: width80, height: width80)
                                 .clipShape(RoundedRectangle(cornerRadius: 17))
-                                .padding( )
+                                .padding()
                             
                             // MARK: - Result
-                            if let result = vm.result {
+                            if let result = vm.resultWithProbability {
                                 VStack {
-                                    Text ("Result")
-                                        .font(.title2)
-                                        .fontWeight(.light)
-                                        .foregroundStyle(Color(.label))
+                                    ProgressBarView(progress: result.1)
                                     
-                                    Text (result.capitalized)
-                                        .font(.largeTitle)
-                                        .fontWeight(.bold)
+                                    // Format: The lesion has a 20% chance of being malignant.
+                                    Text ("The lesion has a \(String(format: "%.2f", result.1 * 100))% chance of being \(result.0.capitalized).")
+                                        .font(.title3)
+                                        .fontWeight(.medium)
                                         .foregroundStyle(Color(.label))
+                                        .multilineTextAlignment(.center)
+                                        .padding(.top)
                                 }
                             }
                         }
-                        .frame(width: width80, height: width100)
+                        .frame(width: width80)
                         
                     } else {
                         // MARK: - Placeholder Image
@@ -101,6 +84,7 @@ struct DashboardView: View {
                             Image(systemName: "plus")
                                 .resizable()
                                 .foregroundStyle(.white)
+                                .opacity(0.75)
                                 .aspectRatio(contentMode: .fit)
                                 .frame(width: UIScreen.main.bounds.width * 0.3)
                                 .padding()
@@ -109,7 +93,6 @@ struct DashboardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 17))
                     }
                 }
-                
             }
         }
         .accentColor(Color(.label))
@@ -131,4 +114,32 @@ struct DashboardView: View {
 
 #Preview {
     DashboardView(vm: ViewModel())
+}
+
+struct Header: View {
+    var body: some View {
+        Text("Detect Skin Cancer")
+            .font(.largeTitle)
+            .bold()
+            .foregroundStyle(Color(.label))
+            .padding()
+            .padding(.top)
+    }
+}
+
+struct DetectButton: View {
+    var body: some View {
+        VStack {
+            Text("\(Image(systemName: "magnifyingglass")) Start Detection")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+        }
+        .foregroundStyle(Color(.systemBackground))
+        .padding()
+        .background {
+            Capsule()
+                .frame(width: UIScreen.main.bounds.width * 0.8)
+        }
+    }
 }

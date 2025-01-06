@@ -32,7 +32,7 @@ struct HistoryView: View {
                 .padding(.horizontal)
                 
                 List {
-                    ForEach (vm.savedHistory) {item in
+                    ForEach (vm.savedHistory.reversed()) {item in
                         HistoryItemView(item: item)
                     }
                     .onDelete(perform: vm.deleteHistory)
