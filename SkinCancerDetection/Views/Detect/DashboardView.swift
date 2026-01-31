@@ -7,10 +7,14 @@
 
 import SwiftUI
 import PhotosUI
+import UIKit
 
 struct DashboardView: View {
     @ObservedObject var vm: ViewModel
     @State private var photosPickerItem: PhotosPickerItem?
+    @State private var showActionSheet = false
+    @State private var showPhotoPicker = false
+    @State private var showCameraPicker = false
     
     @State private var width100 = UIScreen.main.bounds.width
     @State private var width80 = UIScreen.main.bounds.width * 0.8
@@ -45,8 +49,10 @@ struct DashboardView: View {
                 .padding()
             }
             
-            // MARK: - Upload Image Button
-            PhotosPicker(selection: $photosPickerItem, matching: .images) {
+            // MARK: - Upload Image Placeholder
+            Button {
+                showActionSheet = true
+            } label: {
                 ZStack {
                     // Check if the image exists
                     if let image = vm.image {
@@ -95,6 +101,17 @@ struct DashboardView: View {
                 }
             }
         }
+        .confirmationDialog("Upload an image", isPresented: $showActionSheet, titleVisibility: .visible) {
+            Button("Photos") { showPhotoPicker = true }
+            Button("Camera") { showCameraPicker = true }
+        }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $photosPickerItem, matching: .images)
+        .fullScreenCover(isPresented: $showCameraPicker) {
+            ImagePicker(sourceType: .camera) { image in
+                vm.image = image
+                vm.result = nil
+            }
+        }
         .accentColor(Color(.label))
         .onChange(of: photosPickerItem) { _, _ in
             Task {
@@ -140,6 +157,41 @@ struct DetectButton: View {
         .background {
             Capsule()
                 .frame(width: UIScreen.main.bounds.width * 0.8)
+        }
+    }
+}
+
+// MARK: - UIImagePickerController Wrapper for Camera
+struct ImagePicker: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+    
+    var sourceType: UIImagePickerController.SourceType = .camera
+    var completion: (UIImage) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = sourceType
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: ImagePicker
+        init(_ parent: ImagePicker) { self.parent = parent }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.completion(image)
+            }
+            parent.dismiss()
+        }
+        
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
         }
     }
 }
